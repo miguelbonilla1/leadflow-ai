@@ -1,192 +1,110 @@
-# 🤖 AI-Enhanced To-Do List App
+# LeadFlow AI
 
-A Next.js to-do list application with AI-powered task enhancement, built with Supabase, N8N automation, and deployed on Vercel. Updated for production deployment - v2
+LeadFlow AI is an automated lead-operations case study. A business inquiry starts a real workflow: the application validates and stores the request, n8n coordinates analysis and routing, AI returns structured context, deterministic rules assign priority, and a human reviews the proposed reply before anything is sent.
 
-## Features
+This is intentionally more than a chatbot. The AI is one step in a repeatable business process.
 
-- ✅ **Add, Edit, Complete, Delete** tasks
-- 🤖 **AI-powered task enhancement** via OpenAI
-- 🔄 **Real-time updates** with Supabase
-- 🚀 **Deployed on Vercel**
-- 🔧 **N8N automation workflow**
+## Business problem
 
-## 🛠️ Tech Stack
+Small teams commonly receive inquiries through forms, email and messaging apps. Manually copying each request into a CRM, checking whether it is relevant, deciding who should respond and remembering to follow up creates delays and inconsistent service.
 
-- **Framework**: Next.js 15.5.2 (App Router)
-- **Database**: Supabase (PostgreSQL)
-- **Hosting**: Vercel
-- **Automation**: N8N
-- **AI**: OpenAI GPT
-- **Styling**: Tailwind CSS
-- **Language**: TypeScript
+LeadFlow turns that fragmented process into one visible pipeline.
 
-## 🚀 Quick Start
+## Workflow
 
-### Prerequisites
+```text
+Inquiry submitted
+       │
+       ▼
+Validate + detect duplicates
+       │
+       ▼
+Persist in Supabase
+       │
+       ▼
+n8n orchestration
+  ├── business scoring rules
+  ├── structured AI analysis
+  ├── qualification routing
+  └── callback with draft response
+       │
+       ▼
+Operations dashboard
+       │
+       ▼
+Human approval before communication
+```
 
-- Node.js 18+
-- Supabase account
-- N8N account
-- OpenAI API key
-- Vercel account
+## What the demo shows
 
-### 1. Clone & Install
+- Public lead-intake form with validation.
+- Qualification queue and status filtering.
+- Explainable score instead of an opaque AI decision.
+- Business category, recommended service and next action.
+- AI-generated response kept as a draft.
+- Safe demo mode that never sends an email.
+- Live mode with Supabase persistence and n8n callbacks.
+- Duplicate protection for repeated email submissions.
+- Protected callback endpoint and server-only database access.
+
+## Why n8n is necessary
+
+A chat response only produces text. n8n coordinates events across systems, applies branches and business rules, handles failures, waits for later steps and can schedule follow-up actions. The AI interprets unstructured language; n8n owns the operational process.
+
+## Stack
+
+- Next.js 15, React 19 and TypeScript
+- Supabase / PostgreSQL
+- n8n workflow automation
+- OpenAI-compatible structured output
+- Vercel-ready deployment
+
+## Local demo
 
 ```bash
-git clone <your-repo-url>
-cd todo-ai
+git clone https://github.com/miguelbonilla1/ai-automation.git
+cd ai-automation
 npm install
-```
-
-### 2. Environment Variables
-
-Create `.env.local`:
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# N8N
-N8N_WEBHOOK_URL=your_n8n_webhook_url
-N8N_BEARER_TOKEN=your_n8n_bearer_token
-
-# API Security
-TASK_ENHANCE_SECRET=your_secret_key
-```
-
-### 3. Supabase Setup
-
-1. Create a new Supabase project
-2. Run this SQL in the SQL Editor:
-
-```sql
-CREATE TABLE tasks (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  enhanced_title TEXT,
-  completed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "allow read/write for anon" ON tasks
-  FOR ALL USING (true);
-```
-
-### 4. N8N Workflow Setup
-
-1. Create a new workflow in N8N
-2. Add nodes in this order:
-
-   - **Webhook** (trigger)
-   - **OpenAI** (Message a Model)
-   - **HTTP Request** (to your API)
-
-3. Configure OpenAI node:
-
-   - Model: GPT-3.5-turbo
-   - System Prompt: "You are a task enhancement assistant. Make task titles clearer, break them into steps, or enrich them with relevant info. Return only the enhanced title."
-   - User Prompt: `{{$json.title}}`
-
-4. Configure HTTP Request node:
-   - Method: POST
-   - URL: `https://your-vercel-app.vercel.app/api/enhance`
-   - Headers: `x-enhance-secret: your_secret_key`
-   - Body:
-   ```json
-   {
-     "taskId": "{{$('Webhook').item.json.body.taskId}}",
-     "enhancedTitle": "{{$json.message.content}}"
-   }
-   ```
-
-### 5. Run Development
-
-```bash
+cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Set `LEADFLOW_DEMO_MODE=true` to run the complete interface with sample data and local deterministic classification. Demo mode does not call Supabase, n8n, AI or email services.
 
-### 6. Deploy to Vercel
+## Live setup
 
-1. Push to GitHub
-2. Connect repo to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+1. Run [`supabase/migrations/001_create_leads.sql`](supabase/migrations/001_create_leads.sql) in a Supabase project.
+2. Copy `.env.example` to `.env.local`.
+3. Set `LEADFLOW_DEMO_MODE=false`.
+4. Add the Supabase service role key only to the server environment.
+5. Configure the n8n webhook and callback secrets.
+6. Build the n8n workflow described in [`docs/n8n-workflow.md`](docs/n8n-workflow.md).
 
-## 🔧 API Endpoints
+The service role key must never use a `NEXT_PUBLIC_` prefix or be exposed to the browser.
 
-### POST `/api/enhance`
+## API
 
-Updates task with AI-enhanced title.
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/api/leads` | `GET` | Return the latest qualification queue |
+| `/api/leads` | `POST` | Validate, deduplicate and start a workflow |
+| `/api/automation/callback` | `POST` | Receive the protected structured analysis from n8n |
 
-**Headers:**
+## Safety decisions
 
-- `x-enhance-secret`: Your secret key
+- The public browser never connects directly to the database.
+- Anonymous database access is revoked by the migration.
+- n8n must authenticate when returning an analysis.
+- AI output is constrained and validated before persistence.
+- Suggested messages are drafts; sending requires a separate human-approved action.
+- Demo records use fictional contact information.
 
-**Body:**
+## Roadmap
 
-```json
-{
-  "taskId": "uuid",
-  "enhancedTitle": "Enhanced task title"
-}
-```
+- Add authenticated workspaces and team roles.
+- Add an auditable workflow-events table.
+- Add retry and dead-letter handling for failed automations.
+- Connect a sandbox email provider for approved demo messages.
+- Add API integration tests and workflow monitoring.
 
-## 📱 How It Works
-
-1. **User creates task** → Stored in Supabase
-2. **N8N webhook triggered** → Receives task data
-3. **OpenAI enhances title** → Makes it clearer/better
-4. **HTTP request sent** → Updates task in Supabase
-5. **UI updates** → Shows enhanced title
-
-## 🎯 Project Structure
-
-```
-todo-ai/
-├── src/
-│   ├── app/
-│   │   ├── page.tsx          # Main UI + Server Actions
-│   │   └── api/
-│   │       └── enhance/
-│   │           └── route.ts  # N8N callback API
-│   └── lib/
-│       └── supabaseClient.ts # Supabase configuration
-├── .env.local               # Environment variables
-└── README.md               # This file
-```
-
-## 🔒 Security
-
-- Row Level Security enabled in Supabase
-- API authentication with secret token
-- Environment variables for sensitive data
-
-## 🚀 Live Demo
-
-- **Web App**: [https://ai-automation-liard.vercel.app](https://ai-automation-liard.vercel.app)
-- **GitHub**: [Your repo URL]
-- **N8N Access**: [Your N8N workflow URL]
-
-## 📝 TODO (Bonus Features)
-
-- [ ] WhatsApp integration via Evolution API
-- [ ] Filter messages with `#to-do` hashtag
-- [ ] User authentication
-- [ ] Task categories/tags
-- [ ] Due dates and reminders
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-MIT License - feel free to use this project for learning and development!
+Built by [Miguel Bonilla](https://github.com/miguelbonilla1) as a portfolio case study in full-stack development and workflow automation.
