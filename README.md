@@ -62,8 +62,8 @@ A chat response only produces text. n8n coordinates events across systems, appli
 ## Local demo
 
 ```bash
-git clone https://github.com/miguelbonilla1/ai-automation.git
-cd ai-automation
+git clone https://github.com/miguelbonilla1/leadflow-ai.git
+cd leadflow-ai
 npm install
 cp .env.example .env.local
 npm run dev
